@@ -95,7 +95,7 @@ async function sendTelegramNotification(message, imagePath = null) {
             await page.getByRole('textbox', { name: 'XServerアカウントID または メールアドレス' }).click();
             await page.getByRole('textbox', { name: 'XServerアカウントID または メールアドレス' }).fill(user.username);
             await page.locator('#user_password').fill(user.password);
-            await page.getByRole('button', { name: 'ログインする' }).click();
+            await page.getByRole('button', { name: 'ログインする' }).first().click();
 
             // 等待导航
             await page.getByRole('link', { name: 'ゲーム管理' }).click();
