@@ -2,7 +2,7 @@ name: XServer Extend Schedule
 
 on:
   schedule:
-    - cron: '0 1/10 * * *' # Every 10 hours: UTC 01:00, 11:00, 21:00 = Beijing 09:00, 19:00, 05:00
+    - cron: '0 1/12 * * *' # Every 12 hours: UTC 01:00, 13:00 = Beijing 09:00, 21:00
   workflow_dispatch: # Allows manual trigger
 
 jobs:
