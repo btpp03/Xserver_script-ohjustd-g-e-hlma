@@ -80,6 +80,29 @@ def safe_screenshot(sb, path: str):
         logger.warning(f"截图失败: {e}")
 
 
+def dump_text(sb, tag: str):
+    """把当前页面 pure text + 可点击元素打进日志, 便于调试"""
+    try:
+        url = sb.get_current_url()
+    except:
+        url = "?"
+    try:
+        txt = sb.execute_script("return document.body ? document.body.innerText : ''")
+        logger.info(f"### {tag} 页面文本 url={url}:\n{txt[:1800]}")
+    except Exception as e:
+        logger.warning(f"### {tag} dump_text 失败: {e}")
+    try:
+        links = sb.execute_script(
+            "return Array.from(document.querySelectorAll('a,button')).map(function(n){"
+            "var t=(n.textContent||'').trim().replace(/\\s+/g,' ');"
+            "return (n.tagName+':'+t+'|href='+(n.getAttribute('href')||'')+'|id='+(n.id||''));"
+            "}).filter(function(x){return x.length>15;});"
+        )
+        logger.info(f"### {tag} 可点击元素:\n" + "\n".join(links[:60]))
+    except Exception as e:
+        logger.warning(f"### {tag} dump_links 失败: {e}")
+
+
 def notify_telegram(account: str, ok: bool, msg: str = "", screenshot_file: str = None):
     try:
         token = os.environ.get("TG_BOT_TOKEN") or os.environ.get("TELEGRAM_BOT_TOKEN")
@@ -420,6 +443,7 @@ def xserver_extend(sb, account: str) -> tuple:
 
     sp2 = screenshot_path("05-game-panel")
     safe_screenshot(sb, sp2)
+    dump_text(sb, "05-game-panel")
 
     # 升级/延期入口
     clicked_upg = False
@@ -435,6 +459,7 @@ def xserver_extend(sb, account: str) -> tuple:
         # 兜底 JS 点击
         clicked_upg = click_button_text(sb, "アップグレード・期限延長", timeout=5)
     if not clicked_upg:
+        dump_text(sb, "05-NO-upgradefound")
         return False, "未找到 アップグレード・期限延長 入口", sp2
     time.sleep(3)
     switch_to_new_tab(sb)
@@ -442,6 +467,7 @@ def xserver_extend(sb, account: str) -> tuple:
 
     sp3 = screenshot_path("06-upgrade-page")
     safe_screenshot(sb, sp3)
+    dump_text(sb, "06-upgrade-page")
 
     # 期限を延長する (入口)
     if not click_button_text(sb, "期限を延長する", timeout=8):
