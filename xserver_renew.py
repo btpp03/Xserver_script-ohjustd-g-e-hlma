@@ -110,7 +110,10 @@ def notify_telegram(account: str, ok: bool, msg: str = "", screenshot_file: str 
         if not token or not chat_id:
             return
 
-        status = "✅ XServer 续期成功" if ok else "❌ XServer 续期失败"
+        if msg.startswith("未到可续期窗口"):
+            status = "⏳ XServer 检查(未到续期窗口)"
+        else:
+            status = "✅ XServer 续期成功" if ok else "❌ XServer 续期失败"
         lines = [status, "", f"账号：{mask_email(account)}"]
         if msg:
             lines.append(f"信息：{msg}")
@@ -478,7 +481,7 @@ def xserver_extend(sb, account: str) -> tuple:
             body_text = ""
         m = re.search(r"更新をご希望の場合は、(.+?)以降にお試しください。", body_text, re.S)
         if m:
-            msg = f"暂时无法延期，下次可尝试: {m.group(1).strip()}"
+            msg = f"未到可续期窗口(XServer规则: 剩余<4小时才可续)，最早 {m.group(1).strip()}"
             logger.warning(msg)
             return True, msg, sp3
         msg = "未找到 期限を延長する 入口"
