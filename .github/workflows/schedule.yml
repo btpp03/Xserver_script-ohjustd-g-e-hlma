@@ -1,9 +1,7 @@
 name: XServer Extend Schedule
 
 on:
-  schedule:
-    - cron: '0 0,6,12,18 * * *' # UTC→Beijing every 6h (08/14/20/02) — 覆盖 XServer "剩余<4h才能续期"窗口
-  workflow_dispatch: # Allows manual trigger
+  workflow_dispatch: # 由外部 cron-job (北京 08:00 / 20:00) 触发
 
 jobs:
   extend-server:
