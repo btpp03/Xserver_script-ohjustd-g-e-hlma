@@ -21,7 +21,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install seleniumbase pyvirtualdisplay requests
-        sudo apt-get update -qq && sudo apt-get install -y -qq jq xvfb > /dev/null 2>&1
+        sudo apt-get update -qq && sudo apt-get install -y -qq jq xvfb fonts-noto-cjk > /dev/null 2>&1
 
     - name: Setup proxy tunnel (optional)
       env:
