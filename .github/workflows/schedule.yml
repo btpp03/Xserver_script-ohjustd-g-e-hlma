@@ -8,33 +8,45 @@ on:
 jobs:
   extend-server:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
+    - name: Setup Python
+      uses: actions/setup-python@v5
       with:
-        node-version: '20'
+        python-version: '3.11'
 
     - name: Install dependencies
-      run: npm install
+      run: |
+        python -m pip install --upgrade pip
+        pip install seleniumbase pyvirtualdisplay requests
+        sudo apt-get update -qq && sudo apt-get install -y -qq jq xvfb > /dev/null 2>&1
 
-    - name: Install Playwright Browsers
-      run: npx playwright install --with-deps chrome
+    - name: Setup proxy tunnel (optional)
+      env:
+        NODE_LINK: ${{ secrets.NODE_LINK }}
+      run: |
+        chmod +x setup_proxy.sh
+        if ! bash setup_proxy.sh; then
+          echo "❌ Proxy setup failed (直连模式继续)"
+        fi
 
     - name: Run Extension Script
       env:
         USERS_JSON: ${{ secrets.USERS_JSON }}
+        PROXY_SERVER: ${{ env.PROXY_SERVER }}
         TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
         TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
-      run: node action.js
+      run: python xserver_renew.py
 
     - name: Upload Screenshots
-      if: always() # Run even if the script fails
+      if: always()
       uses: actions/upload-artifact@v4
       with:
         name: screenshots
-        path: "*.png"
+        path: "output/screenshots/*.png"
         retention-days: 5
+        if-no-files-found: ignore
