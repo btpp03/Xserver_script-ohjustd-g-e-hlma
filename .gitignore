@@ -2,4 +2,5 @@ node_modules/
 users.json
 *.png
 .env
-old/
+old/__pycache__/
+*.pyc
