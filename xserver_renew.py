@@ -320,6 +320,87 @@ def xserver_login(sb, account: str, password: str) -> bool:
     return found_manage
 
 
+# ================== 标签页处理 ==================
+def switch_to_new_tab(sb) -> bool:
+    """若点击后开了新标签, 切换过去"""
+    try:
+        handles = sb.driver.window_handles
+        if len(handles) > 1:
+            sb.driver.switch_to.window(handles[-1])
+            logger.info(f"已切换到新标签 (共 {len(handles)} 个窗口)")
+            time.sleep(2)
+            return True
+    except:
+        pass
+    return False
+
+
+def click_nav(sb, text: str, timeout: int = 8) -> bool:
+    """点击导航链接(优先精准文本匹配, 支持自动切新标签)。返回是否成功"""
+    url_before = sb.get_current_url()
+    try:
+        sb.wait_for_element_visible(f'a:text("{text}")', timeout=timeout)
+        sb.click(f'a:text("{text}")')
+        time.sleep(3)
+        # 检查是否新开标签
+        if switch_to_new_tab(sb):
+            return True
+        # 检查 URL 是否变化 (导航成功)
+        if sb.get_current_url() != url_before:
+            return True
+        return True
+    except:
+        pass
+    # 兜底: JS 文本匹配点击
+    try:
+        ok = sb.execute_script('''
+            var text = arguments[0];
+            var nodes = document.querySelectorAll('a, button, [role="button"]');
+            for (var i = nodes.length - 1; i >= 0; i--) {
+                var n = nodes[i];
+                var t = (n.textContent || '').trim();
+                if (t.indexOf(text) !== -1) {
+                    n.click();
+                    return true;
+                }
+            }
+            return false;
+        ''', text)
+        if ok:
+            time.sleep(3)
+            switch_to_new_tab(sb)
+            return True
+    except Exception as e:
+        logger.warning(f"click_nav 兜底失败: {e}")
+    return False
+
+
+def click_button_text(sb, text: str, timeout: int = 8) -> bool:
+    for sel in [f'button:text("{text}")', f'a:text("{text}")', f'input[value="{text}"]']:
+        try:
+            sb.wait_for_element_visible(sel, timeout=timeout)
+            sb.click(sel)
+            return True
+        except:
+            continue
+    try:
+        ok = sb.execute_script('''
+            var text = arguments[0];
+            var nodes = document.querySelectorAll('button, a, input');
+            for (var i = nodes.length - 1; i >= 0; i--) {
+                var n = nodes[i];
+                var t = (n.textContent || n.value || '').trim();
+                if (t.indexOf(text) !== -1) { n.click(); return true; }
+            }
+            return false;
+        ''', text)
+        if ok:
+            return True
+    except Exception as e:
+        logger.warning(f"click_button_text 失败: {e}")
+    return False
+
+
 # ================== 延续流程 ==================
 def xserver_extend(sb, account: str) -> tuple:
     """执行延期, 返回 (ok, message, screenshot_path)"""
@@ -327,21 +408,22 @@ def xserver_extend(sb, account: str) -> tuple:
     safe_screenshot(sb, sp)
 
     # 进入游戏管理
-    try:
-        sb.click('a:has-text("ゲーム管理")')
-    except:
+    if not click_nav(sb, "ゲーム管理", timeout=10):
+        # 再试一次 (可能列表页需要点服务器卡片)
         try:
             sb.execute_script('document.querySelector(\'a[href*="xmgame"]\').click()')
+            time.sleep(3)
+            switch_to_new_tab(sb)
         except Exception as e:
-            return False, f"点击游戏管理失败: {e}", sp
-    time.sleep(5)
+            return False, f"点击ゲーム管理失败: {e}", sp
+    time.sleep(4)
 
     sp2 = screenshot_path("05-game-panel")
     safe_screenshot(sb, sp2)
 
     # 升级/延期入口
     clicked_upg = False
-    for sel in ['a:has-text("アップグレード・期限延長")', 'link=アップグレード・期限延長', 'a[href*="upgrade"]', 'a[href*="extend"]']:
+    for sel in ['a:has-text("アップグレード・期限延長")', 'link=アップグレード・期限延長']:
         try:
             sb.wait_for_element_visible(sel, timeout=8)
             sb.click(sel)
@@ -350,23 +432,19 @@ def xserver_extend(sb, account: str) -> tuple:
         except:
             continue
     if not clicked_upg:
-        return False, "未找到 アップグレード・期限延長", sp2
+        # 兜底 JS 点击
+        clicked_upg = click_button_text(sb, "アップグレード・期限延長", timeout=5)
+    if not clicked_upg:
+        return False, "未找到 アップグレード・期限延長 入口", sp2
+    time.sleep(3)
+    switch_to_new_tab(sb)
+    time.sleep(2)
 
-    time.sleep(4)
     sp3 = screenshot_path("06-upgrade-page")
     safe_screenshot(sb, sp3)
 
     # 期限を延長する (入口)
-    extend_link = None
-    for sel in ['a:has-text("期限を延長する")', 'link=期限を延長する']:
-        try:
-            sb.wait_for_element_visible(sel, timeout=6)
-            extend_link = sel
-            break
-        except:
-            continue
-
-    if not extend_link:
+    if not click_button_text(sb, "期限を延長する", timeout=8):
         # 检查下次可更新时间
         try:
             body_text = sb.execute_script("return document.body ? document.body.innerText : ''")
@@ -379,34 +457,21 @@ def xserver_extend(sb, account: str) -> tuple:
             return True, msg, sp3
         msg = "未找到 期限を延長する 入口"
         return False, msg, sp3
+    time.sleep(3)
+    switch_to_new_tab(sb)
 
-    sb.click(extend_link)
-    time.sleep(4)
     sp4 = screenshot_path("07-extend-page")
     safe_screenshot(sb, sp4)
 
     # 确认画面
-    try:
-        sb.click('button:has-text("確認画面に進む")')
-    except:
-        pass
+    click_button_text(sb, "確認画面に進む", timeout=6)
     time.sleep(3)
 
     # 最终延长按钮
-    final_sel = None
-    for sel in ['button:has-text("期限を延長する")', 'input[value="期限を延長する"]', 'a:has-text("期限を延長する")']:
-        try:
-            sb.wait_for_element_visible(sel, timeout=6)
-            final_sel = sel
-            break
-        except:
-            continue
-    if not final_sel:
+    if not click_button_text(sb, "期限を延長する", timeout=8):
         sp5 = screenshot_path("08-no-final")
         safe_screenshot(sb, sp5)
         return False, "未找到最终延长按钮", sp5
-
-    sb.click(final_sel)
     time.sleep(4)
     sp5 = screenshot_path("08-done")
     safe_screenshot(sb, sp5)
