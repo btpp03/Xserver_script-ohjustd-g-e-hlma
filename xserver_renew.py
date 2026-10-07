@@ -110,11 +110,14 @@ def notify_telegram(account: str, ok: bool, msg: str = "", screenshot_file: str 
         if not token or not chat_id:
             return
 
-        if msg.startswith("未到可续期窗口"):
-            status = "⏳ XServer 检查(未到续期窗口)"
+        # 状态判断：续期窗口未到 ≠ "成功"。兼容新旧文案关键词
+        if ("暂时无法延期" in msg) or ("未到可续期窗口" in msg) or ("未到续期窗口" in msg) or ("以降にお試しください" in msg):
+            status = "⏳ 未到续期窗口(未续期)"
+        elif ok:
+            status = "✅ XServer 续期成功"
         else:
-            status = "✅ XServer 续期成功" if ok else "❌ XServer 续期失败"
-        lines = [status, "", f"账号：{mask_email(account)}"]
+            status = "❌ XServer 续期失败"
+        lines = [status, "", f"账号：{account}"]
         if msg:
             lines.append(f"信息：{msg}")
         lines.append(f"时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
