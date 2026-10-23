@@ -507,7 +507,26 @@ def xserver_extend(sb, account: str) -> tuple:
     time.sleep(4)
     sp5 = screenshot_path("08-done")
     safe_screenshot(sb, sp5)
-    return True, "续期完成", sp5
+
+    # 延长后回到游戏面板，读取新的剩余时间（新到期时间）
+    after_info = ""
+    try:
+        sb.open("https://secure.xserver.ne.jp/xmgame/game/index")
+        time.sleep(3)
+        body = sb.get_text("body")
+        m = re.search(r"残り\s*(\d+時間\s*\d+分)", body)
+        if m:
+            after_info = m.group(1).replace(" ", "")
+            logger.info(f"🕒 延长后剩余时间: {after_info}")
+        else:
+            logger.warning("延长后未找到剩余时间文本")
+        sp6 = screenshot_path("09-after")
+        safe_screenshot(sb, sp6)
+    except Exception as e:
+        logger.warning(f"延长后复查失败: {e}")
+
+    msg = f"续期完成，剩余 {after_info}" if after_info else "续期完成"
+    return True, msg, sp5
 
 
 # ================== 主函数 ==================
