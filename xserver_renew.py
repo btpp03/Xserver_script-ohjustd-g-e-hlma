@@ -512,11 +512,11 @@ def xserver_extend(sb, account: str) -> tuple:
     after_info = ""
     try:
         sb.open("https://secure.xserver.ne.jp/xmgame/game/index")
-        time.sleep(3)
-        body = sb.get_text("body")
-        m = re.search(r"残り\s*(\d+時間\s*\d+分)", body)
+        time.sleep(6)
+        body = (sb.get_text("body") or "") + " " + (sb.get_page_source() or "")
+        m = re.search(r"残り\s*(\d+)\s*時間\s*(\d+)\s*分", body)
         if m:
-            after_info = m.group(1).replace(" ", "")
+            after_info = f"{m.group(1)}時間{m.group(2)}分"
             logger.info(f"🕒 延长后剩余时间: {after_info}")
         else:
             logger.warning("延长后未找到剩余时间文本")
