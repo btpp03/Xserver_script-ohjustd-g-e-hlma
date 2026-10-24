@@ -510,23 +510,30 @@ def xserver_extend(sb, account: str) -> tuple:
 
     # 延长后回到游戏面板，读取新的剩余时间（新到期时间）
     after_info = ""
+    sp_final = sp5
     try:
         sb.open("https://secure.xserver.ne.jp/xmgame/game/index")
         time.sleep(6)
         body = (sb.get_text("body") or "") + " " + (sb.get_page_source() or "")
         m = re.search(r"残り\s*(\d+)\s*時間\s*(\d+)\s*分", body)
+        d = re.search(r"\((\d{4}-\d{2}-\d{2})まで\)", body)
         if m:
-            after_info = f"{m.group(1)}時間{m.group(2)}分"
-            logger.info(f"🕒 延长后剩余时间: {after_info}")
+            after_info = f"残り{m.group(1)}時間{m.group(2)}分"
+        if d:
+            after_info = (after_info + f"，到期 {d.group(1)}").strip("，")
+        if after_info:
+            logger.info(f"🕒 延长后: {after_info}")
         else:
             logger.warning("延长后未找到剩余时间文本")
         sp6 = screenshot_path("09-after")
         safe_screenshot(sb, sp6)
+        if Path(sp6).exists():
+            sp_final = sp6
     except Exception as e:
         logger.warning(f"延长后复查失败: {e}")
 
-    msg = f"续期完成，剩余 {after_info}" if after_info else "续期完成"
-    return True, msg, sp5
+    msg = f"续期完成（{after_info}）" if after_info else "续期完成"
+    return True, msg, sp_final
 
 
 # ================== 主函数 ==================
