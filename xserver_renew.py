@@ -580,7 +580,12 @@ def main():
                     if not logged_in:
                         raise RuntimeError("登录失败")
                     ok, msg, sp = xserver_extend(sb, account)
-                    notify_telegram(account, ok, msg, sp)
+                    # 「未到可续期窗口」属正常状态，默认不推送，避免每天刷屏
+                    quiet = msg.startswith("未到可续期窗口") and os.environ.get("NOTIFY_ALL", "0") != "1"
+                    if quiet:
+                        logger.info("⏭ 未到窗口，跳过通知")
+                    else:
+                        notify_telegram(account, ok, msg, sp)
                     if not ok:
                         all_ok = False
             except Exception as e:
